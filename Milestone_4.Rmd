@@ -17,6 +17,12 @@ library(tinytex)
 library(gtable)
 library(gt)
 ```
+
+# Intro
+
+Please find my repo at: https://github.com/Alex1005-stack/Gov_1006_final_project
+
+
 # Bibliography (and associated references):
 To determine whether county government websites meet OGI content requirements, web
 pages are analyzed using a Latent Dirichlet Allocation (LDA) topic model [@blei].
@@ -126,7 +132,6 @@ linear.5  <- lm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illite
 linear.6  <- lm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc + mayor_age + mayor_gender + mayor_edulevel+ mayor_promote, data=bycounty2)
 
 ```
-
 
 # A regression table
 ```{r stargazer, results="asis", echo=FALSE}
