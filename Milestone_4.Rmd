@@ -1,0 +1,137 @@
+---
+title: "Milestone 4"
+author: "Alexander Klueber"
+date: "2/26/2020"
+output: bookdown::pdf_document2
+bibliography: Bibliography.bib
+citations: natbib
+link-citations: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::write_bib(c("blei", "cai"), "Bibliography.bib", width = 60)
+library(tidyverse)
+library(stargazer)
+library(tinytex)
+library(gtable)
+library(gt)
+```
+# Bibliography (and associated references):
+To determine whether county government websites meet OGI content requirements, web
+pages are analyzed using a Latent Dirichlet Allocation (LDA) topic model [@blei].
+
+Table 1 lists the labeled topics alongside the information categories mandated
+by OGI [@cai].
+
+
+# A footnote
+
+The unit of analysis is the county.
+^[China is administered through a hierarchical single-party structure from top to bottom: central level, provincial level, prefectural (city) level, county (district) level, and township level. This study focuses on the county level, including those rural and urban areas.]
+
+
+# A table
+
+Comment:  The following code creates the desired table. Ever since I have updated the gt package, visualizing the table in the PDF, results in an error where the LaTex file compiles, but then the PDF based on that LaTex file doesnt. This error says: There's no line here to end, which means that somewhere in the LaTex file there is an inappropriately based double backslash. After spending hours trying to resolve this, I come to the conclusion that the additional insight from finding a solution does not warrant the effort that is going into it and hope to learn it in class.   
+
+
+```{r table, echo = TRUE}
+county100 <- read.csv("raw-data/countywebsites_sampled100.csv", sep="\t") 
+
+# Table 2: Distribution of Year in Office
+# Creating a count table based of the number of counties in which the mayor has been in office for a certain number of years ( 1- 6 years)
+
+distr <- county100 %>%
+  group_by(mayor_tenure2) %>%
+  summarise(`Number of Counties` = n()) %>%
+  drop_na()
+
+# Creating proportion table based on the number of years in office split by the status the mayor is in
+
+prop <- county100 %>%
+  group_by(mayor_tenure2, mayor_status) %>%
+  summarise(`Number of Counties` = n()) %>%
+  drop_na()%>%
+  spread(key = mayor_status, value = `Number of Counties`) %>%
+  mutate(`in office` = ifelse(is.na(`in office`), 0 , `in office`),
+         promotion = ifelse(is.na(promotion), 0 , promotion),
+         retired_demoted = ifelse(is.na(retired_demoted), 0 , retired_demoted),
+          Total = `in office`+ promotion + retired_demoted,
+         `Stayed in Same Position` = round(`in office`/Total,2),
+          Promoted = round(promotion/Total,2),
+          `Retired or Demoted` = round(retired_demoted/Total,2)) %>%
+  select(`Stayed in Same Position`, Promoted, `Retired or Demoted`, mayor_tenure2)
+  
+table <- bind_cols(prop, distr) %>%
+        select (-mayor_tenure21)
+
+
+gt_table <- 
+  table %>%
+  gt(
+    rowname_col = "mayor_tenure2",
+    groupname_col = "group"
+  )
+
+test_table <- gt_table %>%
+   tab_header(
+    title = "Table 2: Distribution of Year in office") %>%
+    tab_stubhead(label = "Years in Office") %>%
+    fmt_percent(
+    columns = vars("Stayed in Same Position", "Promoted", "Retired or Demoted"),
+    decimals = 0) %>%
+  cols_align("center")
+
+#test_table
+
+```
+
+```{r, include = FALSE}
+bycounty2 <- read.csv("raw-data/predict.csv")
+
+# Create a statistical summary of the linear regression model that regresses a mayor first year or last year binary indicator on  he number of competence metnions on the websites by county
+
+# Table 3 (1)
+linear.1  <- lm(comp ~ mayor_first + mayor_last, data=bycounty2)  # ALMOST: mayo first yr more compolence
+
+  
+  # Adds county 2009 gdp per capita and proportion of county population over the age of 15 who are illiterate and number of county resident employed in information production, wholesale and retail from the 2010 census and total links found from root url of countyurl and 2009 provincial level expenditure on culture and media multiplied by the ratio of county GDP to province GDP
+  
+# Table 3 (2)
+linear.2  <- lm(comp ~ mayor_first +mayor_last +X2009_gdppc_cny+X2010_illiterateprop+itemploy + linksall+ county_mediaexp, data=bycounty2)
+
+
+# Adds whether county party secretary is in first year of office; takes on value of 1 if sec_2011 = 1, 0 otherwise and whether county party secretary is in last year of office; takes on value of 1 if sec_2011 = 1, 0 otherwise
+# Table 3 (3)
+
+linear.3  <- lm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last, data=bycounty2)
+
+
+# Adds whether whether prefecture party secretary is in first or last year of office; takes on value of 1 if pref_ps_2011 = 1, 0 otherwise and evel of education of the prefecture party secretary at the end of formal schooling (not education while a government official); 6 = Doctoral degree; 5 = Master's degree; 4 = Bachelor's degree; 3 = degree from junior college; 2 = high school, 1 = lower than junior college and gdp per capita of the prefecture in 2010 
+
+# Table 3 (4)
+linear.4  <- lm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc, data=bycounty2)
+
+
+# Adds mayor age, mayor gender and mayor education level
+
+# Table 3 (5)
+linear.5  <- lm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc + mayor_age + mayor_gender + mayor_edulevel, data=bycounty2)
+
+
+# Adds mayor promotion
+
+# Table 3 (6)
+linear.6  <- lm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc + mayor_age + mayor_gender + mayor_edulevel+ mayor_promote, data=bycounty2)
+
+```
+
+
+# A regression table
+```{r stargazer, results="asis", echo=FALSE}
+stargazer(linear.1, linear.2, header = FALSE,
+          dep.var.labels=c("Competence"))
+```
+
+# References
