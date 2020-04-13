@@ -277,16 +277,13 @@ The comparison suggests that the best models for how competent an official is de
 
 ## Validating geographic split of sample
 
+Subsequently I am simulating repeated sampling. I do so by creating a function that allows me to draw 100 and 48 random samples from the underlying countywebsites (countyweb). I repeat this step 1000 times, counting the number of counties from each province. I then compare that count with the count of counties in the paper samples (the sample of 100 and the 48 counties we actually end up constructing a model with). 
+
+### Random sample of 100
 ```{r}
 countyweb <- read.csv("raw-data/countywebsites.csv")
-county100 <- read.csv("raw-data/countywebsites_sampled100.csv", sep="\t")
-bycounty2 <- read.csv("raw-data/predict.csv")
-
-glimpse(countyweb)
-glimpse(county100)
-glimpse(bycounty3)
-
-unique(countyweb$Province)
+county100 <- read.csv("raw-data/countywebsites_sampled100.csv", sep="\t") # 100 counties
+glimpse(bycounty3) # 48 counties for subsequent predictions
 
 # function to draw a random samples of size 100 from countyweb and save provinces as names
 
@@ -371,19 +368,163 @@ sim_2 %>%
   xlim(0, 13)+
   geom_segment(data = provinces_100_all, aes(x = Count, xend = Count, y = Number, yend = Number+1), color = "red") + 
   coord_flip()
-
-# Check whether outside the 95% for any province
-
-# Do the same with 48 sample 
-
-# --> Done with extension
 ```
 
+```{r}
+# Create 95% CI intervals and check for which ones the observed frequency count is outside the 95% CI interval
 
-### No Tibet in sample
+sim_3 <- sim_2 %>%
+  group_by(provinces) %>%
+  summarize(CI_lower = quantile(provinces_count, .025),
+            CI_upper = quantile(provinces_count, .975)) %>%
+  left_join(provinces_100_all, by = c("provinces", "provinces")) %>%
+  mutate(`Outside CI` = ifelse(Count > CI_upper | Count < CI_lower, "Yes", "No")) %>%
+  select(-Number)
 
+# Create gt table
 
+gt_table_2 <- 
+  sim_3 %>%
+  gt(
+    rowname_col = "Provinces",
+    groupname_col = "Confidence Intervals"
+  )
 
+gt_table_2 %>% 
+  tab_stubhead(label = "Provinces") %>%
+  tab_header(
+    title = "Extension Table 1: Frequency of provinces in sample of 100",
+    subtitle = "Based on simulation of 1000 samples of 100") %>%
+  cols_align("center") %>%
+  cols_label(
+    provinces = "Provinces",
+    CI_upper = "97.5 Percentile",
+    CI_lower = "2.5 Percentile",
+    Count = "Frequency in paper sample"
+  )
+```
 
-# Place entire project on the web, using bookdown, Shiny
+Repeated simulated sampling allows us to conclude that the sample of 100 in the paper is random and thereby representative in terms of geographic sampling. This is because the number of counties from a province in no case is outside the 95% CI interval that we constructed. The graph shows that in some counties, s.a. Heilongjiang or Hennan the county occurences are rather on the margins of what we would expect to see.   
+
+### Sample of 48 for modelling
+
+```{r}
+# function to draw a random samples of size 48 from countyweb and save provinces as names
+
+county48_sim <- function(){
+  
+  x48 <- sample_n(countyweb, 48)
+  list(x48$Province)
+}
+# Count the number of times each province occurs 
+
+calc_provinces_48 <- function(sample){
+  
+  # Given a sample --- a vector of length 100 with provinces in a random order --- how often does each province occur?
+  stopifnot(is.list(sample))
+  plan <- unlist(sample)
+  
+  stopifnot(length(plan) == 48)
+  stopifnot(all(plan %in% c("Heilongjiang", "Jilin", "Liaoning", "Qinghai", "Gansu", "Shaanxi", "Shanxi", "Hebei", "Sichuan", "Hubei", "Henan", "Shandong", "Anhui", "Jiangsu", "Yunnan", "Guizhou", "Hunan", "Jiangxi", "Zhejiang", "Hainan", "Guangdong", "Fujian", "Beijing", "Tianjin", "Chongqing", "Shanghai", "Xinjiang", "Inner Mongolia", "Tibet", "Ningxia", "Guangxi")))
+
+  provinces <- c("Heilongjiang", "Jilin", "Liaoning", "Qinghai", "Gansu", "Shaanxi", "Shanxi", "Hebei", "Sichuan", "Hubei", "Henan", "Shandong", "Anhui", "Jiangsu", "Yunnan", "Guizhou", "Hunan", "Jiangxi", "Zhejiang", "Hainan", "Guangdong", "Fujian", "Beijing", "Tianjin", "Chongqing", "Shanghai", "Xinjiang", "Inner Mongolia", "Tibet", "Ningxia", "Guangxi")
+  
+  provinces_count <- c(1:31)
+  
+  for (i in 1:31){
+  provinces_count[i] <- sum(plan == provinces[i])
+  }
+  
+  provinces_out <- data.frame(provinces, provinces_count)
+  return(provinces_out)
+}
+```
+
+```{r, cache = TRUE}
+# Create tibble that contains a thousand repetition of the sampling  
+
+sim48 <- 
+  tibble(replication = 1:1000) %>% 
+  mutate(sample_provinces = map(replication, ~ county48_sim())) %>%
+  mutate(provinces = map(sample_provinces, ~ calc_provinces_48(.)))  %>%
+  select(-sample_provinces)
+
+sim_48_2 <- sim48 %>% unnest(cols = c(provinces)) 
+
+sim_48_2 <- sim_48_2[order(sim_48_2$provinces),]
+```
+
+```{r}
+
+# Count number of counties in paper sample
+provinces_48 <- bycounty3 %>% group_by(province_en) %>% count()
+
+provinces_dat_48 <- data.frame(provinces)
+
+provinces_48_all <- provinces_dat_48 %>% 
+                  left_join(provinces_48, by = c("provinces" = "province_en")) %>%
+                  mutate(Count = ifelse(is.na(n) == TRUE, 0, n)) %>%
+                  select(-n)
+
+provinces_48_all <- provinces_48_all[order(provinces_48_all$provinces),] %>%
+                    mutate(Number = 1:31)
+
+# Create a graph 
+
+sim_48_2 %>% 
+  ggplot(aes(x = provinces_count, y = provinces, fill = provinces)) + 
+  geom_density_ridges(rel_min_height = 0.01, scale = 2, alpha = 0.7, size = 0.3, panel_scaling = FALSE) +
+  labs(title = "Distribution for frequency of counties per province in sample of 48",
+         subtitle = "The geographic distribution of the sample utilized in the paper is surprising based on 1000 repeated samples",
+         caption = "Data from paper: How Chinese Officials Use the Internet to Construct their Public Image",
+         x = "Frequency of counties per province in sample of 48",
+         y = "Provinces")+
+  theme_ridges() +
+  scale_fill_cyclical(values = c("blue", "green"))+
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      axis.text.x = element_text(size=10, angle = 270)
+    )+
+  xlim(0, 13)+
+  geom_segment(data = provinces_48_all, aes(x = Count, xend = Count, y = Number, yend = Number+1), color = "red") + 
+  coord_flip()
+```
+
+```{r}
+# Create 95% CI intervals and check for which ones the observed frequency count is outside the 95% CI interval
+
+sim_48_3 <- sim_48_2 %>%
+  group_by(provinces) %>%
+  summarize(CI_lower = quantile(provinces_count, .025),
+            CI_upper = quantile(provinces_count, .975)) %>%
+  left_join(provinces_48_all, by = c("provinces", "provinces")) %>%
+  mutate(`Outside CI` = ifelse(Count > CI_upper | Count < CI_lower, "Yes", "No"),
+         `On lower CI boundary` = ifelse(Count == CI_lower, "Yes", "No")) %>%
+  select(-Number)
+
+# Create gt table
+
+gt_table_3 <- 
+  sim_48_3 %>%
+  gt(
+    rowname_col = "Provinces",
+    groupname_col = "Confidence Intervals"
+  )
+
+gt_table_3 %>% 
+  tab_stubhead(label = "Provinces") %>%
+  tab_header(
+    title = "Extension Table 1: Frequency of provinces in sample of 48",
+    subtitle = "Based on simulation of 1000 samples of 48") %>%
+  cols_align("center") %>%
+  cols_label(
+    provinces = "Provinces",
+    CI_upper = "97.5 Percentile",
+    CI_lower = "2.5 Percentile",
+    Count = "Frequency in paper sample"
+  )
+```
+
+Repeated simulated sampling allows us to conclude that the sample of 48 in the paper is likely random and thereby representative in terms of geographic sampling. This is because the number of counties from a province in only one case (Zhejiang) is outside the 95% CI interval that we constructed. The graph shows that there is a surprising amount of states at the lower boundary of 0. This seems plausible due to the small size of the sample (Beijing, Hainan, Henan, Jilin, Liaoning, Ningxia, Qinghai and Tibet). There seems to be no regional pattern among these states (3 East, 2 Central, 3 West).
 
