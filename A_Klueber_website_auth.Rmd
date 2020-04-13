@@ -1,0 +1,563 @@
+---
+title: "Replication and extension of How Chinese Officials Use the Internet to Construct their Public Image by Jennifer Pan"
+author: "Alexander Klueber"
+date: "4/7/2020"
+output: bookdown::pdf_document2
+bibliography: Bibliography.bib
+citations: natbib
+link-citations: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::write_bib(c("blei", "cai", "horsley", "jiang", "un", "seifert", "pan", "10.2307/24877628", "10.2307/20058957", "10.1177/0894439308327313", "Kalathil_Boas_2003", "LI20051743", "pan2"), "Bibliography.bib", width = 60)
+
+library(viridis)
+library(hrbrthemes)
+library(ggridges)
+library(skimr)
+library(tidybayes)
+library(rstanarm)
+library(tidyverse)
+library(stargazer)
+library(tinytex)
+library(gtable)
+library(gt)
+
+
+```
+
+# Abstract
+
+Pan shows that the emphasis on Chinese local government websites on either the competence or benevolence of county executives depends on where they are in the political tenure cycle. Early tenure county executives project images of benevolence by emphasizing their attentiveness and concern toward citizens. Late tenure executives project images of competence by highlighting their achievements. These findings shift the nature of debates concerning the role of the Internet in authoritarian regimes from a focus on regime-society
+interactions to an examination of dynamics among regime insiders. I was largely able to replicate the statistical models that she uses to suggest the before mentioned relationships. My own extension confirms that this is the most likely explanation for the observed effect by introducing a series of models that could support alternative explanations for the observed effect (e.g. cultural differences among regions, gender differences, etc.) and comparing the explanatory power of these models through the leave one out method. In addition I could validate the randomness of the sample selected to draw the underlying conclusions from a geographical perspective through a repeated sampling simulation and the construction of confidence intervals and their comparison with the observed provinces in the sample of 100 and the sample of 48 that was ultimately used to construct the models.
+
+# Introduction 
+
+I am interested to explore whether other explanations than the signalling function within authoritarian regimes may plausibly explain the alterations in competence / benevolence patterns described in the paper. I will explore these alternatives by comparing the explanatory power of the variable categories employed in the paper and extending them with a new category (culture which will include the macro-region and the county type). Alternative hypothesis therefore are:
+1. The benevolence/competence patterns may be explained by regional cultural variations
+2. The benevolence/competence patterns may be explained by the resources at disposal to the official
+3. The benevolence/competence patterns may be explained by internal peer preferences  
+4. The benevolence/competence patterns may be explained by characteristics of the prefecture 
+5. The benevolence/competence patterns may be explained by the individual abilities of the county officials
+6. The benevolence/competence patterns may be explained by the immediate career success of county officials
+
+Proving that it is in fact not tenure, but one of the other factors that have nothing to do with the career path of the individuals within the party, would weaken that connection. This comparison between models seems relevant as in the original paper the variables that are statistically significant vary between the models. In the model with the most controls, for competence "mayor education levels" and "whether a county party secretary is in first year of office" are statistically significant, for benevolence no variables are statistically significant. Between the regressions the number of observations included also varies, which initially makes a comparison between the models and the variables in the models difficult.  
+
+This endevour is constrained by the data available in the dataverse of the replication paper. Only the pre-selected sample of 100 contains all variables relevant for the analysis on a county level. Therefore a sub-division of that data by provinces will leave us with very small sample sizes. Other examples are that the sample only contains 4 female mayors, 1 person with education level 6, 4 people with education level 5, 3 people with education levle 2 and 2 people with education level 0.  
+
+Building on this, the other part of my extension is around validating the sample selection process. Initially, it seems surprising that the author has sub-selected 100 of the 2,787 counties with website, and we immediately dismiss another 29 counties in our modelling because of data inavailability and subsequently another ~23 as our regressions get more ambitious (include more variables). The absence of any website from Tibet is furthermore conspicuous.     
+
+# Literature review
+
+The replication paper aims to contribute to the larger discusison around role of the Internet in authoritarian regimes, especially in China. It is part of a larger shift in embracing the complexity of the role of the internet within these regimes. It moved from a prevailing assumption of the Internet's inherent democratic nature, and its ascribed power to undermine authoritarian regimes to a much more nuanced view that emphasises the utilitization of the internet in relation to how it is playing out.[@Kalathil_Boas_2003]
+
+While transparency laws are implemented by central authorities with the intention to obtain more information about the performance of local officials, they turn out to be political instruments for self-promotion among regime insiders. Research shows that the desired transparency does not come to frutition because grievances submitted through these online forums are systematically concealed from upper-level authorities when they implicate lower-tier officials or associates connected to lower-tier officialsthrough patronage ties. Information manipulation occurs primarily through omission of wrongdoingrather than censorship or falsification, suggesting that even in the digital age, in a highly determined andcapable regime where reports of corruption are actively and publicly voiced, monitoring the behavior ofregime agents remains a challenge.[@pan2]
+
+There is however some disagreement whether creating transparency on local government performance is the primary function of these laws to begin with, or whether they are primarily intended as subtle instruments of online social control through information delivery, agenda setting, and containment of public dissent.[@10.1177/0894439308327313] 
+
+The emphasis of local officials on the communication among insiders are also reflected by field experiments testing the responsiveness of local officials. Tattling to upper levels of government made county governments considerably more responsive to citizen's demands.[@10.2307/24877628] This challenges to some degree earlier findings that the capacity of the central state to monitor and control lower level agents has increased in China as it suggests that some of the efforts to do so have altered the nature of the interaction rather than shifting the power relationships within it.[@10.2307/20058957] 
+
+This isn't necessarily something negative in of itself, as empirical findings suggest that China uses personnel control to induce desirable outcomes, especially economic gains.[@LI20051743] This alludes to an associated discussion around the relevance of image building in authoritarian regimes and the missapropriation of resources in the service of that. China is mentioned as an example of that where the political arrangements have greacted the incentive and the opportunities for irresponsible behaviour among state agents to do so.[@cai]
+
+# Extension
+
+## Comparison of alternative regression models in explaining competence and benevolence 
+
+One challenge with the regressions is that they are actually based on different underlying data. This is because of the data availability in the sample of 100 counties and then the prediction file. As we employ the various regressions, the number of observations used to fit these regressions decreases from 71 to 48. They are therefore fit based on different underlying data.
+
+In a first step I therefore harmonize the regressions by basing them on the same number of observations throughout - the 48 observations that have all data available. I then compare whether the new regressions yield similar results as the regressions in the paper.
+
+### Competence 
+```{r regression_comparison_competence, cache = TRUE, include =FALSE}
+# load in 71 counties with over 100 Chinese language web pages, with svm predictions 
+
+bycounty2 <- read.csv("raw-data/predict.csv")
+
+# Dropping all N/As 
+
+bycounty3 <- bycounty2 %>% drop_na()
+
+# Create a statistical summary of the linear regression model that regresses a mayor first year or last year binary indicator on  he number of competence metnions on the websites by county
+
+# Table 3 (1)
+linear_1 <- stan_glm(comp ~ mayor_first + mayor_last, data=bycounty3)  # ALMOST: mayo first yr more compolence
+
+  # Adds county 2009 gdp per capita and proportion of county population over the age of 15 who are illiterate and number of county resident employed in information production, wholesale and retail from the 2010 census and total links found from root url of countyurl and 2009 provincial level expenditure on culture and media multiplied by the ratio of county GDP to province GDP
+  
+# Table 3 (2)
+linear_2 <- stan_glm(comp ~ mayor_first +mayor_last +X2009_gdppc_cny+X2010_illiterateprop+itemploy + linksall+ county_mediaexp, data=bycounty3)
+
+
+# Adds whether county party secretary is in first year of office; takes on value of 1 if sec_2011 = 1, 0 otherwise and whether county party secretary is in last year of office; takes on value of 1 if sec_2011 = 1, 0 otherwise
+# Table 3 (3)
+
+linear_3 <- stan_glm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last, data=bycounty3)
+
+
+# Adds whether whether prefecture party secretary is in first or last year of office; takes on value of 1 if pref_ps_2011 = 1, 0 otherwise and evel of education of the prefecture party secretary at the end of formal schooling (not education while a government official); 6 = Doctoral degree; 5 = Master's degree; 4 = Bachelor's degree; 3 = degree from junior college; 2 = high school, 1 = lower than junior college and gdp per capita of the prefecture in 2010 
+
+# Table 3 (4)
+linear_4 <- stan_glm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc, data=bycounty3) 
+
+
+# Adds mayor age, mayor gender and mayor education level
+
+# Table 3 (5)
+linear_5 <- stan_glm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc + mayor_age + mayor_gender + mayor_edulevel, data=bycounty3)
+
+
+# Adds mayor promotion
+
+# Table 3 (6)
+linear_6 <- stan_glm(comp ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc + mayor_age + mayor_gender + mayor_edulevel+ mayor_promote, data=bycounty3)
+```
+
+```{r predictive_inference_competence_stargazer,  results="asis", echo=FALSE}
+
+linear_1_st <- data.frame(linear_1)
+linear_2_st <- data.frame(linear_2)
+linear_3_st <- data.frame(linear_3)
+linear_4_st <- data.frame(linear_4)
+linear_5_st <- data.frame(linear_5)
+linear_6_st <- data.frame(linear_6)
+
+stargazer(linear_1_st, linear_2_st, linear_3_st, linear_4_st, linear_5_st, linear_6_st, # The various models included in the table
+          title="Table 3: Regression Results: Competence", # The title of the table
+          dep.var.caption = c("Dependent variable: Competence"), # The Caption of the table
+          dep.var.labels.include=FALSE, # Don't include dependent variable labels
+          no.space=TRUE, 
+          keep.stat="n", # Include number of observation
+          table.layout ="=l-c-t-a-s=n", # Detailing table layout according to replication paper (first dependent variable caption, then column headers, then coefficient table, then added lines, then summary statistics, then notes)
+          add.lines=list(c("Resource controls",
+                           rep("No", 1),rep("Yes",5)),
+                        c("Peer controls",
+                           rep("No", 2),rep("Yes",4)),
+                        c("Prefecture controls",
+                           rep("No", 3),rep("Yes",3)),
+                        c("Ability controls",
+                           rep("No", 4),rep("Yes",2)),
+                        c("Career paths controls",
+                           rep("No", 5),rep("Yes",1))), # Add lines to describe in categories the series of variables included
+                        covariate.labels = c("Beginning Tenure", "End Tenure"),
+                        float = FALSE) # Rename coefficient labels
+
+
+# Note: Default type is Latex
+
+# !!!!!! Place next to originals
+```
+
+
+### Benevolence
+
+```{r regression_comparison_benevolence, cache = TRUE, include=FALSE}
+# Create a statistical summary of the linear regression model that regresses a mayor first year or last year binary indicator on  he number of competence metnions on the websites by county
+
+# Table 3 (1)
+linear.1 <- stan_glm(benev ~ mayor_first + mayor_last, data=bycounty3)  # ALMOST: mayo first yr more compolence
+
+  # Adds county 2009 gdp per capita and proportion of county population over the age of 15 who are illiterate and number of county resident employed in information production, wholesale and retail from the 2010 census and total links found from root url of countyurl and 2009 provincial level expenditure on culture and media multiplied by the ratio of county GDP to province GDP
+  
+# Table 3 (2)
+linear.2 <- stan_glm(benev ~ mayor_first +mayor_last +X2009_gdppc_cny+X2010_illiterateprop+itemploy + linksall+ county_mediaexp, data=bycounty3)
+
+
+# Adds whether county party secretary is in first year of office; takes on value of 1 if sec_2011 = 1, 0 otherwise and whether county party secretary is in last year of office; takes on value of 1 if sec_2011 = 1, 0 otherwise
+# Table 3 (3)
+
+linear.3 <- stan_glm(benev ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last, data=bycounty3)
+
+
+# Adds whether whether prefecture party secretary is in first or last year of office; takes on value of 1 if pref_ps_2011 = 1, 0 otherwise and evel of education of the prefecture party secretary at the end of formal schooling (not education while a government official); 6 = Doctoral degree; 5 = Master's degree; 4 = Bachelor's degree; 3 = degree from junior college; 2 = high school, 1 = lower than junior college and gdp per capita of the prefecture in 2010 
+
+# Table 3 (4)
+linear.4 <- stan_glm(benev ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc, data=bycounty3) 
+
+
+# Adds mayor age, mayor gender and mayor education level
+
+# Table 3 (5)
+linear.5 <- stan_glm(benev ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc + mayor_age + mayor_gender + mayor_edulevel, data=bycounty3)
+
+
+# Adds mayor promotion
+
+# Table 3 (6)
+linear.6 <- stan_glm(benev ~ mayor_first + mayor_last + X2009_gdppc_cny + X2010_illiterateprop+itemploy + linksall+ county_mediaexp + sec_first + sec_last + pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc + mayor_age + mayor_gender + mayor_edulevel+ mayor_promote, data=bycounty3)
+```
+
+```{r predictive_inference_benevolence_stargazer,  results="asis", echo=FALSE}
+
+linear.1_st <- data.frame(linear.1)
+linear.2_st <- data.frame(linear.2)
+linear.3_st <- data.frame(linear.3)
+linear.4_st <- data.frame(linear.4)
+linear.5_st <- data.frame(linear.5)
+linear.6_st <- data.frame(linear.6)
+
+stargazer(linear.1_st, linear.2_st, linear.3_st, linear.4_st, linear.5_st, linear.6_st, # The various models included in the table
+          title="Table 3: Regression Results: Competence", # The title of the table
+          dep.var.caption = c("Dependent variable: Competence"), # The Caption of the table
+          dep.var.labels.include=FALSE, # Don't include dependent variable labels
+          no.space=TRUE, 
+          keep.stat="n", # Include number of observation
+          table.layout ="=l-c-t-a-s=n", # Detailing table layout according to replication paper (first dependent variable caption, then column headers, then coefficient table, then added lines, then summary statistics, then notes)
+          add.lines=list(c("Resource controls",
+                           rep("No", 1),rep("Yes",5)),
+                        c("Peer controls",
+                           rep("No", 2),rep("Yes",4)),
+                        c("Prefecture controls",
+                           rep("No", 3),rep("Yes",3)),
+                        c("Ability controls",
+                           rep("No", 4),rep("Yes",2)),
+                        c("Career paths controls",
+                           rep("No", 5),rep("Yes",1))), # Add lines to describe in categories the series of variables included
+                        covariate.labels = c("Beginning Tenure", "End Tenure"),
+                        float = FALSE) # Rename coefficient labels
+
+
+# Note: Default type is Latex
+
+# !!!!!! Place next to originals
+```
+
+In a second step I go through the various regressions seeking to understand whether any of the tested variable classes (resources, peers, prefecture, ability, career path) explain the observed phenomena better than the ones around tenure. I do so by creating a series of new regressions that include only the variables in the respective variable classes. In addition I introduce a new series of classes: culture that includes the variables macro-region and county type.
+
+```{r new_regression_comparison_competence, cache = TRUE, include = FALSE}
+
+# Create a statistical summary of the linear regression model that regresses a mayor first year or last year binary indicator on  he number of competence metnions on the websites by county
+
+  # Resources
+linear_7 <- stan_glm(comp ~ X2009_gdppc_cny+X2010_illiterateprop+itemploy + linksall+ county_mediaexp, data=bycounty3)
+linear.7 <- stan_glm(benev ~ X2009_gdppc_cny+X2010_illiterateprop+itemploy + linksall+ county_mediaexp, data=bycounty3)
+
+
+
+# Peers
+linear_8 <- stan_glm(comp ~ sec_first + sec_last, data=bycounty3)
+linear.8 <- stan_glm(benev ~ sec_first + sec_last, data=bycounty3)
+
+
+# Prefecture
+linear_9 <- stan_glm(comp ~ pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc, data=bycounty3) 
+linear.9 <- stan_glm(benev ~ pref_ps_first + pref_ps_last + pref_ps_edulevel + pref_2010_gdppc, data=bycounty3) 
+
+
+# Ability
+linear_10 <- stan_glm(comp ~ mayor_age + mayor_gender + mayor_edulevel, data=bycounty3)
+linear.10 <- stan_glm(benev ~ mayor_age + mayor_gender + mayor_edulevel, data=bycounty3)
+
+
+# Career path
+linear_11 <- stan_glm(comp ~ mayor_promote, data=bycounty3)
+linear.11 <- stan_glm(benev ~ mayor_promote, data=bycounty3)
+
+
+# Culture
+linear_12 <- stan_glm(comp ~ macroregion, data=bycounty3)
+linear.12 <- stan_glm(benev ~ macroregion, data=bycounty3)
+
+```
+
+I then compare all the available models with the leave-one-out method to see which one of these is best suited to explain the observed phenomena.
+
+### Competence
+```{r, cache = TRUE, echo=FALSE}
+# Leave-one-out cross validation for all prior models
+loo_1 <- loo(linear_1, k_threshold = 0.7)
+loo_2 <- loo(linear_2, k_threshold = 0.7)
+loo_3 <- loo(linear_3, k_threshold = 0.7)
+loo_4 <- loo(linear_4, k_threshold = 0.7)
+loo_5 <- loo(linear_5, k_threshold = 0.7)
+loo_6 <- loo(linear_6, k_threshold = 0.7)
+loo_7 <- loo(linear_7, k_threshold = 0.7)
+loo_8 <- loo(linear_8, k_threshold = 0.7)
+loo_9 <- loo(linear_9, k_threshold = 0.7)
+loo_10 <- loo(linear_10, k_threshold = 0.7)
+loo_11 <- loo(linear_11, k_threshold = 0.7)
+loo_12 <- loo(linear_12, k_threshold = 0.7)
+
+# Compare models 
+loo_compare(loo_1, loo_2, loo_3, loo_4, loo_5, loo_6, loo_7, loo_8, loo_9, loo_10, loo_11, loo_12)
+```
+
+### Benevolence
+```{r, cache = TRUE, echo=FALSE}
+# Leave-one-out cross validation for all prior models
+loo.1 <- loo(linear.1, k_threshold = 0.7)
+loo.2 <- loo(linear.2, k_threshold = 0.7)
+loo.3 <- loo(linear.3, k_threshold = 0.7)
+loo.4 <- loo(linear.4, k_threshold = 0.7)
+loo.5 <- loo(linear.5, k_threshold = 0.7)
+loo.6 <- loo(linear.6, k_threshold = 0.7)
+loo.7 <- loo(linear.7, k_threshold = 0.7)
+loo.8 <- loo(linear.8, k_threshold = 0.7)
+loo.9 <- loo(linear.9, k_threshold = 0.7)
+loo.10 <- loo(linear.10, k_threshold = 0.7)
+loo.11 <- loo(linear.11, k_threshold = 0.7)
+loo.12 <- loo(linear.12, k_threshold = 0.7)
+
+# Compare models 
+loo_compare(loo.1, loo.2, loo.3, loo.4, loo.5, loo.6, loo.7, loo.8, loo.9, loo.10, loo.11, loo.12)
+```
+The comparison suggests that the best models for how competent an official is described as, are the tenure based model employed in the paper and whether officials were promoted in the two ensuing years. The later is a post-treatment variable. Rather than delviering additional insights on what the factors around an official are that determine the website content, it suggests the relative importance of the website content in determining whether an individual is promoted. In combination this supports the hypothesis of the author that the websites have an important signalling function within the Chinese state apparatus to determine who gets promoted.
+
+## Validating geographic split of sample
+
+Subsequently I am simulating repeated sampling. I do so by creating a function that allows me to draw 100 and 48 random samples from the underlying countywebsites (countyweb). I repeat this step 10000 times, counting the number of counties from each province. I then compare that count with the count of counties in the paper samples (the sample of 100 and the 48 counties we actually end up constructing a model with). 
+
+### Random sample of 100
+```{r}
+countyweb <- read.csv("raw-data/countywebsites.csv")
+county100 <- read.csv("raw-data/countywebsites_sampled100.csv", sep="\t") # 100 counties
+
+# function to draw a random samples of size 100 from countyweb and save provinces as names
+
+x <- sample_n(countyweb, 100)
+
+county100_sim <- function(){
+  
+  x <- sample_n(countyweb, 100)
+  list(x$Province)
+}
+
+# Count the number of times each province occurs 
+
+calc_provinces <- function(sample){
+  
+  # Given a sample --- a vector of length 100 with provinces in a random order --- how often does each province occur?
+  stopifnot(is.list(sample))
+  plan <- unlist(sample)
+  
+  stopifnot(length(plan) == 100)
+  stopifnot(all(plan %in% c("Heilongjiang", "Jilin", "Liaoning", "Qinghai", "Gansu", "Shaanxi", "Shanxi", "Hebei", "Sichuan", "Hubei", "Henan", "Shandong", "Anhui", "Jiangsu", "Yunnan", "Guizhou", "Hunan", "Jiangxi", "Zhejiang", "Hainan", "Guangdong", "Fujian", "Beijing", "Tianjin", "Chongqing", "Shanghai", "Xinjiang", "Inner Mongolia", "Tibet", "Ningxia", "Guangxi")))
+
+  provinces <- c("Heilongjiang", "Jilin", "Liaoning", "Qinghai", "Gansu", "Shaanxi", "Shanxi", "Hebei", "Sichuan", "Hubei", "Henan", "Shandong", "Anhui", "Jiangsu", "Yunnan", "Guizhou", "Hunan", "Jiangxi", "Zhejiang", "Hainan", "Guangdong", "Fujian", "Beijing", "Tianjin", "Chongqing", "Shanghai", "Xinjiang", "Inner Mongolia", "Tibet", "Ningxia", "Guangxi")
+  
+  provinces_count <- c(1:31)
+  
+  for (i in 1:31){
+  provinces_count[i] <- sum(plan == provinces[i])
+  }
+  
+  provinces_out <- data.frame(provinces, provinces_count)
+  return(provinces_out)
+}
+```
+
+```{r, cache = TRUE}
+# Create tibble that contains a thousand repetition of the sampling  
+
+sim <- 
+  tibble(replication = 1:10000) %>% 
+  mutate(sample_provinces = map(replication, ~ county100_sim())) %>%
+  mutate(provinces = map(sample_provinces, ~ calc_provinces(.)))  %>%
+  select(-sample_provinces)
+
+sim_2 <- sim %>% unnest(cols = c(provinces)) 
+
+sim_2 <- sim_2[order(sim_2$provinces),]
+        
+  
+```
+
+```{r}
+provinces_100 <- county100 %>% group_by(province_en) %>% count()
+
+provinces <- c("Heilongjiang", "Jilin", "Liaoning", "Qinghai", "Gansu", "Shaanxi", "Shanxi", "Hebei", "Sichuan", "Hubei", "Henan", "Shandong", "Anhui", "Jiangsu", "Yunnan", "Guizhou", "Hunan", "Jiangxi", "Zhejiang", "Hainan", "Guangdong", "Fujian", "Beijing", "Tianjin", "Chongqing", "Shanghai", "Xinjiang", "Inner Mongolia", "Tibet", "Ningxia", "Guangxi")
+
+provinces_dat <- data.frame(provinces)
+
+provinces_100_all <- provinces_dat %>% 
+                  left_join(provinces_100, by = c("provinces" = "province_en")) %>%
+                  mutate(Count = ifelse(is.na(n) == TRUE, 0, n)) %>%
+                  select(-n)
+
+provinces_100_all <- provinces_100_all[order(provinces_100_all$provinces),] %>%
+                    mutate(Number = 1:31)
+```
+```{r}
+# Create a graph 
+
+sim_2 %>% 
+  ggplot(aes(x = provinces_count, y = provinces, fill = provinces)) + 
+  geom_density_ridges(rel_min_height = 0.01, scale = 2, alpha = 0.7, size = 0.3, panel_scaling = FALSE) +
+  labs(title = "Frequency distribution of counties per province in sample of 100",
+         subtitle = "Geographic distribution of the paper sample acc to 10000 repeated samples",
+         caption = "Data from How Chinese Officials Use the Internet to Construct their Public Image",
+         x = "No of counties in province",
+         y = "Provinces")+
+  theme_ridges() +
+  scale_fill_cyclical(values = c("blue", "green"))+
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      axis.text.x = element_text(size=10, angle = 270)
+    )+
+  xlim(0, 13)+
+  geom_segment(data = provinces_100_all, aes(x = Count, xend = Count, y = Number, yend = Number+1), color = "red") + 
+  coord_flip()
+
+```
+
+
+```{r}
+# Create 95% CI intervals and check for which ones the observed frequency count is outside the 95% CI interval
+
+sim_3 <- sim_2 %>%
+  group_by(provinces) %>%
+  summarize(CI_lower = quantile(provinces_count, .025),
+            CI_upper = quantile(provinces_count, .975)) %>%
+  left_join(provinces_100_all, by = c("provinces", "provinces")) %>%
+  mutate(`Outside CI` = ifelse(Count > CI_upper | Count < CI_lower, "Yes", "No")) %>%
+  select(-Number)
+
+# Create gt table
+
+gt_table_2 <- 
+  sim_3 %>%
+  gt(
+    rowname_col = "Provinces",
+    groupname_col = "Confidence Intervals"
+  )
+
+gt_table_2 %>% 
+  tab_stubhead(label = "Provinces") %>%
+  tab_header(
+    title = "Extension Table 1: Frequency of provinces in sample of 100",
+    subtitle = "Based on simulation of 10000 samples of 100") %>%
+  cols_align("center") %>%
+  cols_label(
+    provinces = "Provinces",
+    CI_upper = "97.5 Percentile",
+    CI_lower = "2.5 Percentile",
+    Count = "Frequency in paper sample"
+  )
+```
+
+Repeated simulated sampling allows us to conclude that the sample of 100 in the paper is random and thereby representative in terms of geographic sampling. This is because the number of counties from a province in no case is outside the 95% CI interval that we constructed. The graph shows that in some counties, s.a. Heilongjiang or Hennan the county occurences are rather on the margins of what we would expect to see.   
+
+### Sample of 48 for modelling
+
+```{r}
+# function to draw a random samples of size 48 from countyweb and save provinces as names
+
+county48_sim <- function(){
+  
+  x48 <- sample_n(countyweb, 48)
+  list(x48$Province)
+}
+# Count the number of times each province occurs 
+
+calc_provinces_48 <- function(sample){
+  
+  # Given a sample --- a vector of length 100 with provinces in a random order --- how often does each province occur?
+  stopifnot(is.list(sample))
+  plan <- unlist(sample)
+  
+  stopifnot(length(plan) == 48)
+  stopifnot(all(plan %in% c("Heilongjiang", "Jilin", "Liaoning", "Qinghai", "Gansu", "Shaanxi", "Shanxi", "Hebei", "Sichuan", "Hubei", "Henan", "Shandong", "Anhui", "Jiangsu", "Yunnan", "Guizhou", "Hunan", "Jiangxi", "Zhejiang", "Hainan", "Guangdong", "Fujian", "Beijing", "Tianjin", "Chongqing", "Shanghai", "Xinjiang", "Inner Mongolia", "Tibet", "Ningxia", "Guangxi")))
+
+  provinces <- c("Heilongjiang", "Jilin", "Liaoning", "Qinghai", "Gansu", "Shaanxi", "Shanxi", "Hebei", "Sichuan", "Hubei", "Henan", "Shandong", "Anhui", "Jiangsu", "Yunnan", "Guizhou", "Hunan", "Jiangxi", "Zhejiang", "Hainan", "Guangdong", "Fujian", "Beijing", "Tianjin", "Chongqing", "Shanghai", "Xinjiang", "Inner Mongolia", "Tibet", "Ningxia", "Guangxi")
+  
+  provinces_count <- c(1:31)
+  
+  for (i in 1:31){
+  provinces_count[i] <- sum(plan == provinces[i])
+  }
+  
+  provinces_out <- data.frame(provinces, provinces_count)
+  return(provinces_out)
+}
+```
+
+```{r, cache = TRUE}
+# Create tibble that contains a thousand repetition of the sampling  
+
+sim48 <- 
+  tibble(replication = 1:10000) %>% 
+  mutate(sample_provinces = map(replication, ~ county48_sim())) %>%
+  mutate(provinces = map(sample_provinces, ~ calc_provinces_48(.)))  %>%
+  select(-sample_provinces)
+
+sim_48_2 <- sim48 %>% unnest(cols = c(provinces)) 
+
+sim_48_2 <- sim_48_2[order(sim_48_2$provinces),]
+```
+
+```{r}
+
+# Count number of counties in paper sample
+provinces_48 <- bycounty3 %>% group_by(province_en) %>% count()
+
+provinces_dat_48 <- data.frame(provinces)
+
+provinces_48_all <- provinces_dat_48 %>% 
+                  left_join(provinces_48, by = c("provinces" = "province_en")) %>%
+                  mutate(Count = ifelse(is.na(n) == TRUE, 0, n)) %>%
+                  select(-n)
+
+provinces_48_all <- provinces_48_all[order(provinces_48_all$provinces),] %>%
+                    mutate(Number = 1:31)
+
+# Create a graph 
+
+sim_48_2 %>% 
+  ggplot(aes(x = provinces_count, y = provinces, fill = provinces)) + 
+  geom_density_ridges(rel_min_height = 0.01, scale = 2, alpha = 0.7, size = 0.3, panel_scaling = FALSE) +
+  labs(title = "Frequency distribution of counties per province in sample of 48",
+         subtitle = "Geographic distribution of the paper sample acc to 10000 repeated samples",
+         caption = "Data from How Chinese Officials Use the Internet to Construct their Public Image",
+         x = "No of counties in province",
+         y = "Provinces")+
+  theme_ridges() +
+  scale_fill_cyclical(values = c("blue", "green"))+
+    theme(
+      legend.position="none",
+      panel.spacing = unit(0.1, "lines"),
+      axis.text.x = element_text(size=10, angle = 270)
+    )+
+  xlim(0, 7)+
+  geom_segment(data = provinces_48_all, aes(x = Count, xend = Count, y = Number, yend = Number+1), color = "red") + 
+  coord_flip()
+```
+
+```{r}
+# Create 95% CI intervals and check for which ones the observed frequency count is outside the 95% CI interval
+
+sim_48_3 <- sim_48_2 %>%
+  group_by(provinces) %>%
+  summarize(CI_lower = quantile(provinces_count, .025),
+            CI_upper = quantile(provinces_count, .975)) %>%
+  left_join(provinces_48_all, by = c("provinces", "provinces")) %>%
+  mutate(`Outside CI` = ifelse(Count > CI_upper | Count < CI_lower, "Yes", "No"),
+         `On lower CI boundary` = ifelse(Count == CI_lower, "Yes", "No")) %>%
+  select(-Number)
+
+# Create gt table
+
+gt_table_3 <- 
+  sim_48_3 %>%
+  gt(
+    rowname_col = "Provinces",
+    groupname_col = "Confidence Intervals"
+  )
+
+gt_table_3 %>% 
+  tab_stubhead(label = "Provinces") %>%
+  tab_header(
+    title = "Extension Table 1: Frequency of provinces in sample of 48",
+    subtitle = "Based on simulation of 10000 samples of 48") %>%
+  cols_align("center") %>%
+  cols_label(
+    provinces = "Provinces",
+    CI_upper = "97.5 Percentile",
+    CI_lower = "2.5 Percentile",
+    Count = "Frequency in paper sample"
+  )
+```
+
+Repeated simulated sampling allows us to conclude that the sample of 48 in the paper is likely random and thereby representative in terms of geographic sampling. This is because the number of counties from a province in only one case (Zhejiang) is outside the 95% CI interval that we constructed. The graph shows that there is a surprising amount of states at the lower boundary of 0. This seems plausible due to the small size of the sample (Beijing, Hainan, Henan, Jilin, Liaoning, Ningxia, Qinghai and Tibet). There seems to be no regional pattern among these states (3 East, 2 Central, 3 West).
+
+# References
